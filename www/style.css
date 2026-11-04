@@ -1,0 +1,24 @@
+:root {
+  color-scheme: light dark;
+}
+
+body, html {
+  background: light-dark(#f2d6a7, #675f4c);
+  color:      light-dark(#675f4c, #f2d6a7);
+  font-family: sans-serif;
+}
+
+/*
+@media (prefers-color-scheme: light) {
+  body, html {
+    background: #f2d6a7;
+    color:      #675f4c;
+  }
+}
+@media (prefers-color-scheme: dark) {
+  body, html {
+    background: #675f4c;
+    color:      #f2d6a7;
+  }
+}
+*/

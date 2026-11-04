@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:font="https://swashbuckler-city.jmcateer.com/font-metadata/1.0"
+     width="600"
+     height="1000"
+     viewBox="0 -200 600 1000"
+     font:name="a"
+     font:unicode="U+0061"
+     font:advance="600">
+
+    <title>Lowercase a</title>
+
+    <path d="
+        M 300,150
+        C 180,150 100,240 100,350
+        C 100,460 180,550 300,550
+        C 420,550 500,460 500,350
+        C 500,240 420,150 300,150
+        Z
+    "/>
+
+</svg>

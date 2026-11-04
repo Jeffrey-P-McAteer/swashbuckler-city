@@ -1,0 +1,22 @@
+[workspace]
+resolver = "3"
+members = [
+  "sc-common",
+  "sc-linux", "sc-macos", "sc-windows",
+  "sc-web",
+]
+exclude = [
+  "scripts",
+]
+
+[profile.release]
+# Fast stuff
+opt-level = 2
+overflow-checks = false
+lto = true
+# Slow stuff
+debug = true
+strip = "none"
+panic = 'unwind'
+
+

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:font="https://swashbuckler-city.jmcateer.com/font-metadata/1.0"
+     width="600"
+     height="1000"
+     viewBox="0 -200 600 1000"
+     font:name="A"
+     font:unicode="U+0041"
+     font:advance="600">
+
+    <title>Capital A</title>
+    <desc>Geometric uppercase A</desc>
+
+    <path id="outline" d="
+        M 50,0
+        L 250,700
+        L 350,700
+        L 550,0
+        L 430,0
+        L 300,500
+        L 170,0
+        Z
+    "/>
+
+</svg>
