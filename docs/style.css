@@ -8,6 +8,15 @@ body, html {
   font-family: sans-serif;
 }
 
+@font-face {
+  font-family: 'SwashBTitle';
+  src: url('fonts/SwashBTitle.ttf');
+}
+
+.testfont {
+  font-family: 'SwashBTitle';
+}
+
 /*
 @media (prefers-color-scheme: light) {
   body, html {
