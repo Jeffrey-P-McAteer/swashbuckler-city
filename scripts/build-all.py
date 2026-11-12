@@ -16,8 +16,14 @@ import re
 import tarfile
 import io
 import shlex
+import stat
 
 import zstandard
+
+def print_run(cmd, **subprocess_kwargs):
+  debug_cmd = shlex.join(cmd)
+  print(f'> {debug_cmd}')
+  subprocess.run(cmd, **subprocess_kwargs)
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 DEBUG = os.environ.get('DEBUG', '').lower() in ('y', '1', 't')
@@ -27,29 +33,34 @@ os.environ.pop('RUSTFLAGS', None)
 
 # Ensure build tools are available
 
-required_bins = ['cargo', 'zig']
+required_bins_and_sources = [
+  ('cargo',  'https://rustup.rs/'),
+  ('zig',    'https://ziglang.org/download/'),
+  ('xmac',  'https://github.com/Jarred-Sumner/xmac/releases')
+]
 
-for b in required_bins:
+for b, source_url in required_bins_and_sources:
   if not shutil.which(b):
-    print(f'[ Fatal Error] required binary "{b}" does not exist. Install and re-run.')
+    print(f'[ Fatal Error] required binary "{b}" does not exist. Install and re-run (see {source_url})')
     sys.exit(1)
-
 
 if not shutil.which('cargo-zigbuild'):
   yn = input(f'Need cargo-zigbuild[.exe] installed, ok to install?').strip().lower()
   if not (yn[:1] in ('y', '1', 't') ):
     print(f'[ Fatal Error] Cannot install cargo-zigbuild, exiting.')
     sys.exit(1)
-  subprocess.run([
+  print_run([
     'cargo', 'install', '--locked', 'cargo-zigbuild'
   ], check=True)
 
 # (Assuming exec on linux system)
 # We must manually download a copy of the mingw build tools which zig calls out to - https://packages.msys2.org/packages/mingw-w64-cross-mingw64-binutils?variant=x86_64
 
+mingw32_tools_folder = os.path.join(pathlib.Path.home(), '.cache', 'mingw32_tools_folder')
+os.makedirs(mingw32_tools_folder, exist_ok=True)
+if DEBUG:
+  print(f'[ DEBUG ] Storing mingw32_tools_folder = {mingw32_tools_folder}')
 if not shutil.which('x86_64-w64-mingw32-dlltool'):
-  mingw32_tools_folder = os.path.join(pathlib.Path.home(), '.cache', 'mingw32_tools_folder')
-  os.makedirs(mingw32_tools_folder, exist_ok=True)
   print(f'x86_64-w64-mingw32-dlltool not found, loading from {mingw32_tools_folder}')
   os.environ['PATH'] = os.pathsep.join([
       os.environ['PATH'],
@@ -78,13 +89,59 @@ if not shutil.which('x86_64-w64-mingw32-dlltool'):
       tar.extractall(path=mingw32_tools_folder)
 
 if DEBUG:
-  print('Using downloaded binary', shutil.which('x86_64-w64-mingw32-dlltool'))
+  print('[ DEBUG ] Using downloaded binary', shutil.which('x86_64-w64-mingw32-dlltool'))
+
+macos_sdk_folder = os.path.join(pathlib.Path.home(), '.cache', 'macos_sdk_folder')
+os.makedirs(macos_sdk_folder, exist_ok=True)
+macos_sdk_cache = os.path.join(pathlib.Path.home(), '.cache', 'macos_sdk_cache')
+os.makedirs(macos_sdk_cache, exist_ok=True)
+if DEBUG:
+  print(f'[ DEBUG ] Storing macos_sdk_folder = {macos_sdk_folder}')
+if not os.path.exists(os.path.join(macos_sdk_folder, 'SDKs')):
+  print_run([
+    'xmac',
+      'splat',
+      '--accept-license',
+      '--output', macos_sdk_folder,
+      '--cache-dir', macos_sdk_cache,
+  ])
+# Identify the most-recent copy of "MacOSX<A>.<B>.sdk" folder under MacOSX26.5.sdk
+most_recent_macos_sdk_folder = None
+for major_num in range(100, 0, -1):
+  for minor_num in range(100, 0, -1):
+    potential_folder_name = os.path.join(macos_sdk_folder, 'SDKs', f'MacOSX{major_num}.{minor_num}.sdk')
+    if os.path.exists(potential_folder_name):
+      most_recent_macos_sdk_folder = potential_folder_name
+      break
+
+if most_recent_macos_sdk_folder is None:
+  raise Exception(f'Review files under {macos_sdk_folder}, we cannot find the most-recent "MacOSX<A>.<B>.sdk" folder')
+os.environ['SDKROOT'] = most_recent_macos_sdk_folder
+if DEBUG:
+  print(f'[ DEBUG ] Storing most_recent_macos_sdk_folder = {most_recent_macos_sdk_folder}')
+if not shutil.which('xcrun'):
+  temp_xcrun_shim = '/tmp/sb-build-tools/xcrun'
+  if not os.path.exists(temp_xcrun_shim):
+    os.makedirs(os.path.dirname(temp_xcrun_shim), exist_ok=True)
+    with open(temp_xcrun_shim, 'w') as fd:
+      fd.write(f'''
+#!/bin/bash
+echo {shlex.join([most_recent_macos_sdk_folder])}
+'''.strip())
+    subprocess.run(['chmod', '+x', temp_xcrun_shim])
+  os.environ['PATH'] = os.pathsep.join([
+      os.environ['PATH'],
+      os.path.dirname(temp_xcrun_shim)
+  ])
+
+if DEBUG:
+  print_run(['xcrun', '--sdk', 'macosx', '--show-sdk-path'])
 
 
 # Ensure all generated graphics are up to date
 subprocess.run([
   os.path.join(REPO_ROOT, 'scripts', 'build-graphics.py')
-])
+], check=True)
 
 
 def find_target_binary(t, bin_base_name):
@@ -105,11 +162,6 @@ def file_size_mb(file_path):
     pass
   num_mb = float(num_bytes) / 1_000_000
   return f'{num_mb:.1f}mb'
-
-def print_run(cmd, **subprocess_kwargs):
-  debug_cmd = shlex.join(cmd)
-  print(f'> {debug_cmd}')
-  subprocess.run(cmd, **subprocess_kwargs)
 
 class Build:
   def __init__(self, folder_name, required_targets, optional_targets):

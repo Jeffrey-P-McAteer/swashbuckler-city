@@ -11,6 +11,7 @@ import os
 import pathlib
 import shutil
 import xml.etree.ElementTree
+import datetime
 
 import fontTools
 import json5
@@ -22,6 +23,16 @@ import fontTools.pens.transformPen
 import fontTools.svgLib.path
 import fontTools.misc.transform
 
+def get_normalized_build_timestamp():
+    now = datetime.datetime.now(datetime.timezone.utc)
+    year_start = datetime.datetime(
+        now.year, 1, 1,
+        tzinfo=datetime.timezone.utc
+    )
+    # OpenType timestamps use seconds since 1904-01-01 UTC.
+    opentype_epoch = datetime.datetime(1904, 1, 1, tzinfo=datetime.timezone.utc)
+    return int((year_start - opentype_epoch).total_seconds())
+
 def build_font(source: pathlib.Path, output: pathlib.Path):
     config = json5.loads(
         (source / "font-config.json").read_text()
@@ -29,7 +40,7 @@ def build_font(source: pathlib.Path, output: pathlib.Path):
 
     upm = config.get("unitsPerEm", 1000)
 
-    glyph_order = [".notdef"]
+    glyph_order = [".notdef"] # important to avoid re-ordering glyphs
     glyphs = {}
     cmap = {}
     metrics = {}
@@ -128,6 +139,13 @@ def build_font(source: pathlib.Path, output: pathlib.Path):
     fb.setupMaxp()
 
     output.parent.mkdir(parents=True, exist_ok=True)
+
+    # Prevent save() from changing the modification timestamp.
+    fb.font.recalcTimestamp = False
+    SOURCE_DATE = get_normalized_build_timestamp()
+    fb.font["head"].created = SOURCE_DATE
+    fb.font["head"].modified = SOURCE_DATE
+
     fb.save(output)
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent

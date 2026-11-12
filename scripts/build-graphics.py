@@ -17,5 +17,5 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 # TODO better organization
 subprocess.run([
   os.path.join(REPO_ROOT, 'scripts', 'build-graphics-fonts.py')
-])
+], check=True)
 
